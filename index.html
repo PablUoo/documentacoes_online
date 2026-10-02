@@ -26,6 +26,7 @@
     <div class="wrap"><span id="contagem">Documentos Online</span><span>PDF · QR Code</span></div>
   </footer>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="assets/app.js"></script>
   <script>
     let docs = [];
@@ -43,6 +44,7 @@
             ${d.descricao ? `<div class="muted small">${App.esc(d.descricao)}</div>` : ''}
           </div>
           <div class="botoes">
+            <button class="btn" data-imprimir="${App.esc(d.id)}">Imprimir QR Code</button>
             <a class="btn primario" href="doc.html?id=${encodeURIComponent(d.id)}">Abrir</a>
           </div>
         </li>`).join('');
@@ -51,6 +53,11 @@
     }
 
     document.getElementById('busca').addEventListener('input', render);
+    lista.addEventListener('click', ev => {
+      const b = ev.target.closest('[data-imprimir]');
+      const doc = b && docs.find(d => d.id === b.dataset.imprimir);
+      if (doc) App.imprimirA4(doc, App.linkDoc(doc.id));
+    });
     App.carregarPublico().then(d => { docs = d; render(); })
       .catch(() => { vazio.textContent = 'Não foi possível carregar os documentos.'; });
   </script>

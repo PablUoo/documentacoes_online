@@ -23,6 +23,7 @@
     <div class="wrap"><span id="statusTitulo">Documentos Online</span><a href="./">Todos os documentos</a></div>
   </footer>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="assets/app.js"></script>
   <script>
     (async () => {
@@ -56,9 +57,11 @@
         <div class="botoes" style="margin:20px 0">
           <a class="btn primario grande" href="${App.esc(l.baixar)}" ${l.local ? 'download' : ''} target="_blank" rel="noopener">Baixar PDF</a>
           <a class="btn grande" href="${App.esc(l.ver)}" target="_blank" rel="noopener">Abrir em tela cheia</a>
+          <button class="btn grande" id="btnImprimir">Imprimir QR Code</button>
         </div>
         <iframe class="visualizador" src="${App.esc(embed)}" title="${App.esc(doc.titulo)}" allow="autoplay"></iframe>
         <p class="dica">Se o documento não aparecer acima, use o botão “Abrir em tela cheia”.</p>`;
+      document.getElementById('btnImprimir').addEventListener('click', () => App.imprimirA4(doc, App.linkDoc(doc.id)));
     })();
   </script>
 </body>
