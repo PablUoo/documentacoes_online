@@ -7,3 +7,7 @@ desktop.ini
 .vscode/
 .idea/
 .claude/
+
+# Dados gerados pelo painel: ficam na branch "dados", não na main
+data/
+arquivos/

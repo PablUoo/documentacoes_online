@@ -12,11 +12,20 @@ Site estático para o GitHub Pages: você cadastra documentos PDF (link do Googl
 
 O QR Code aponta para a página `doc.html?id=...`, e não direto para o arquivo. Assim você pode **trocar o PDF ou o link do Drive sem reimprimir o QR Code**, e desativar o documento quando quiser.
 
+## Como o repositório é organizado
+
+| Branch | Conteúdo | Quem altera |
+|---|---|---|
+| `main` | Código do site (HTML, CSS, JS) | Você, pelo `git` |
+| `dados` | `data/documentos.json` e a pasta `arquivos/` com os PDFs | Só o painel admin |
+
+A Action [`.github/workflows/pages.yml`](.github/workflows/pages.yml) junta as duas branches e publica o site. Ela roda a cada push na `main`, e a branch `dados` a dispara sempre que o painel salva algo. Como o painel nunca mexe na `main`, o seu `git push` nunca é recusado por alterações feitas pelo painel.
+
 ## Como publicar
 
-1. Crie um repositório **público** no GitHub (ex.: `documentacoes_online`) e envie todos os arquivos desta pasta.
-2. No repositório: **Settings → Pages → Source: Deploy from a branch → `main` / `(root)`** → Save.
-3. Em ~1 minuto o site fica em `https://SEU_USUARIO.github.io/documentacoes_online/`.
+1. No repositório: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+2. Rode a Action uma vez em **Actions → Publicar site → Run workflow**, ou faça um push na `main`.
+3. Em 1 a 2 minutos o site fica em `https://SEU_USUARIO.github.io/documentacoes_online/`.
 
 ## Como criar o token do painel admin
 
@@ -33,7 +42,7 @@ O token fica salvo só no navegador onde você conectou. Use **Sair** para apag�
 ## Cadastrando documentos
 
 - **Google Drive:** no Drive, clique em *Compartilhar → Acesso geral → Qualquer pessoa com o link* e cole o link no painel. Também funciona com Google Docs, Planilhas e Apresentações (o download sai em PDF).
-- **Enviar PDF:** o arquivo vai para a pasta `arquivos/` do repositório. Limite de 25 MB por arquivo. Para arquivos maiores, use o Drive.
+- **Enviar PDF:** o arquivo vai para a pasta `arquivos/` da branch `dados`. Limite de 25 MB por arquivo. Para arquivos maiores, use o Drive.
 
 Depois de salvar, clique em **QR Code** e escolha:
 
@@ -43,7 +52,7 @@ Depois de salvar, clique em **QR Code** e escolha:
 
 ## Observações
 
-- Depois de salvar, o GitHub Pages leva cerca de 1 minuto para publicar a mudança.
+- Depois de salvar, a Action leva 1 a 2 minutos para publicar a mudança (acompanhe em **Actions**).
 - O repositório é público, então os PDFs enviados e a lista `data/documentos.json` podem ser vistos por qualquer pessoa. Não use para documentos sigilosos.
 - Desmarcar **Ativo** bloqueia o acesso sem invalidar o QR Code. **Excluir** remove o documento de vez, e o QR Code para de funcionar.
 - Desmarcar **Mostrar na página inicial** esconde o documento da lista. Ele continua acessível pelo QR Code.

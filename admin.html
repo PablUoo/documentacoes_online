@@ -30,8 +30,9 @@
         <input type="text" id="cfgOwner" required placeholder="ex.: pabloalmeida">
         <label for="cfgRepo">Repositório</label>
         <input type="text" id="cfgRepo" required placeholder="ex.: documentacoes_online">
-        <label for="cfgBranch">Branch</label>
-        <input type="text" id="cfgBranch" value="main" required>
+        <label for="cfgBranch">Branch dos dados</label>
+        <input type="text" id="cfgBranch" value="dados" required>
+        <div class="dica">Branch onde ficam os documentos e PDFs. O código do site fica na main.</div>
         <label for="cfgToken">Token de acesso (fine-grained)</label>
         <input type="password" id="cfgToken" required autocomplete="off" placeholder="github_pat_...">
         <div class="dica">Crie em GitHub → Settings → Developer settings → Fine-grained tokens, só para este repositório, com permissão <b>Contents: Read and write</b>.</div>
