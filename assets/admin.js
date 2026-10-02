@@ -734,6 +734,9 @@ $('#btnFecharQr').addEventListener('click', () => $('#dlgQr').close());
 
 // ---------- Início ----------
 
+// A opção de recriar o acesso fica escondida; aparece só em /admin?recuperar.
+$('#recuperarAcesso').classList.toggle('oculto', !new URLSearchParams(location.search).has('recuperar'));
+
 // Remove o token salvo em texto puro pela versão anterior do painel.
 try { localStorage.removeItem('docqr.config'); } catch { /* sem storage */ }
 

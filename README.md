@@ -36,7 +36,7 @@ Depois disso, em qualquer navegador ou celular, basta entrar com usuário e senh
 
 - **Usuários:** botão **Usuários** no painel para criar e remover admins. Cada um entra com o próprio usuário e senha.
 - **Trocar senha:** botão **Trocar senha**. Muda só o seu usuário e senha. Se informar um token novo (ex.: o antigo venceu), ele passa a valer para todos os admins.
-- **Esqueceu a senha:** peça para outro admin remover e recriar o seu usuário. Se ninguém conseguir entrar, use *Configure o acesso de novo* na tela de login com um token válido (isso recria o acesso e os outros admins precisam ser cadastrados de novo).
+- **Esqueceu a senha:** peça para outro admin remover e recriar o seu usuário. Se ninguém conseguir entrar, abra `/admin?recuperar` (a opção fica escondida na tela de login normal), clique em *Configure o acesso de novo* com um token válido (isso recria o acesso e os outros admins precisam ser cadastrados de novo).
 - **Remover um admin** impede novos logins dele. Se ele já viu o token, troque o token também para cortar o acesso por completo.
 - **Manter conectado neste computador:** marque na tela de login para não precisar entrar de novo nesse navegador. Sem marcar, a sessão termina ao fechar a aba.
 - **Sair:** encerra a sessão e apaga o token deste navegador.
