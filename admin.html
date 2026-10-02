@@ -42,6 +42,21 @@
       <p class="dica oculto" id="recuperarAcesso" style="margin-top:16px">Esqueceu a senha? <a href="#" id="lnkConfigurar">Configure o acesso de novo</a> usando o token do GitHub.</p>
     </section>
 
+    <!-- Token vencido: troca só o token, mantendo usuário e senha -->
+    <section class="card oculto" id="telaToken" style="max-width:480px;margin:40px auto 0">
+      <h2>Atualizar token do GitHub</h2>
+      <p class="muted small">Seu usuário e senha estão certos, mas o token do GitHub salvo no painel venceu ou foi revogado. Cole um token novo: sua senha e os outros admins continuam iguais.</p>
+      <form id="formToken">
+        <label for="tokenNovo">Token novo</label>
+        <input type="password" id="tokenNovo" required autocomplete="off" placeholder="github_pat_...">
+        <div class="dica">Crie em GitHub → Settings → Developer settings → Fine-grained tokens, só para este repositório, com <b>Contents: Read and write</b>. Escolha uma validade longa.</div>
+        <div class="botoes" style="margin-top:18px">
+          <button class="btn primario" type="submit" id="btnSalvarToken">Salvar token</button>
+          <button class="btn" type="button" id="btnCancelarToken">Cancelar</button>
+        </div>
+      </form>
+    </section>
+
     <!-- Configuração do acesso (primeiro uso ou troca de senha) -->
     <section class="card oculto" id="telaLogin">
       <h2 id="tituloConfig">Configurar acesso</h2>

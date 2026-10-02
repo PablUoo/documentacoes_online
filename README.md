@@ -35,6 +35,7 @@ Depois disso, em qualquer navegador ou celular, basta entrar com usuário e senh
 **Como fica seguro sem servidor:** o token fica em `data/acesso.json` num "cofre" criptografado (AES-GCM) com uma chave mestra aleatória. Cada admin tem a própria cópia da chave mestra, criptografada com o usuário e a senha dele (PBKDF2-SHA256, 600 mil iterações). O arquivo é público, mas sem um usuário e senha válidos nada pode ser lido. Use senhas longas: quem baixar o arquivo pode tentar adivinhar uma senha à força.
 
 - **Usuários:** botão **Usuários** no painel para criar e remover admins. Cada um entra com o próprio usuário e senha.
+- **Token do GitHub venceu ou foi revogado:** basta entrar com o seu usuário e senha de sempre. O painel percebe que o token não funciona e pede só um token novo. Senhas e outros admins continuam iguais.
 - **Trocar senha:** botão **Trocar senha**. Muda só o seu usuário e senha. Se informar um token novo (ex.: o antigo venceu), ele passa a valer para todos os admins.
 - **Esqueceu a senha:** peça para outro admin remover e recriar o seu usuário. Se ninguém conseguir entrar, abra `/admin?recuperar` (a opção fica escondida na tela de login normal), clique em *Configure o acesso de novo* com um token válido (isso recria o acesso e os outros admins precisam ser cadastrados de novo).
 - **Remover um admin** impede novos logins dele. Se ele já viu o token, troque o token também para cortar o acesso por completo.

@@ -251,7 +251,7 @@ function novoId() {
 // ---------- Telas ----------
 
 function mostrarTela(id) {
-  ['#telaEntrar', '#telaLogin', '#telaDocs'].forEach(t => $(t).classList.toggle('oculto', t !== id));
+  ['#telaEntrar', '#telaLogin', '#telaToken', '#telaDocs'].forEach(t => $(t).classList.toggle('oculto', t !== id));
   const logado = id === '#telaDocs';
   $('#btnSair').classList.toggle('oculto', !logado);
   $('#btnTrocarSenha').classList.toggle('oculto', !logado);
@@ -301,8 +301,11 @@ function mostrarConfig({ trocando = false, primeiroAcesso = false } = {}) {
   mostrarTela('#telaLogin');
 }
 
+let ultimoErro = null;
+
 async function conectar() {
   aviso('Conectando...');
+  ultimoErro = null;
   try {
     await carregarDocs();
     mostrarTela('#telaDocs');
@@ -310,17 +313,20 @@ async function conectar() {
     renderLista();
     return true;
   } catch (e) {
+    ultimoErro = e.status;
     const dicas = {
-      401: 'O token do GitHub salvo no painel é inválido, expirou ou foi revogado. Gere um token novo e use “Configure o acesso de novo”, abaixo.',
+      401: 'O token do GitHub é inválido, expirou ou foi revogado.',
       403: 'O token não tem permissão neste repositório (precisa de Contents: Read and write).',
       404: 'Repositório ou branch não encontrado (ou o token não tem acesso a ele).',
     };
     aviso(dicas[e.status] || e.message, 'erro');
-    // Com o token quebrado ninguém consegue entrar: mostra a opção de recriar o acesso.
-    if (e.status === 401 || e.status === 403) $('#recuperarAcesso').classList.remove('oculto');
     return false;
   }
 }
+
+// Login certo, mas o token salvo no cofre não funciona mais: guarda usuário e senha
+// só em memória para trocar o token sem mexer na senha nem nos outros admins.
+let tokenPendente = null;
 
 async function entrar(ev) {
   ev.preventDefault();
@@ -342,13 +348,58 @@ async function entrar(ev) {
       return;
     }
     cfg = { ...aberto.cred, usuario: normalizarUsuario(usuario), mestra: aberto.mestra ? bytesParaB64(aberto.mestra) : null };
-    if (!(await conectar())) { cfg = {}; mostrarEntrar(); return; }
+    if (!(await conectar())) {
+      if (ultimoErro === 401 || ultimoErro === 403) {
+        tokenPendente = { usuario, senha, lembrar: $('#lembrar').checked };
+        mostrarTrocaToken();
+      } else {
+        cfg = {};
+        mostrarEntrar();
+      }
+      return;
+    }
     // Arquivo da versão 1: converte para o formato com vários usuários.
     if (!aberto.mestra) await criarAcessoNovo(usuario, senha).catch(() => {});
     gravarSessao(cfg, $('#lembrar').checked);
   } finally {
     btn.disabled = false;
     btn.textContent = 'Entrar';
+  }
+}
+
+function mostrarTrocaToken() {
+  $('#tokenNovo').value = '';
+  mostrarTela('#telaToken');
+  $('#tokenNovo').focus();
+}
+
+async function salvarTokenNovo(ev) {
+  ev.preventDefault();
+  if (!tokenPendente) { mostrarEntrar(); return; }
+  const btn = $('#btnSalvarToken');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  const tokenAntigo = cfg.token;
+  cfg.token = $('#tokenNovo').value.trim();
+  try {
+    if (!(await conectar())) { cfg.token = tokenAntigo; mostrarTela('#telaToken'); return; }
+    if (cfg.mestra) {
+      // Troca só o token dentro do cofre: senhas e outros admins continuam iguais.
+      await alterarAcesso(`Atualiza token do painel (${cfg.usuario})`, async (acesso, mestra) => {
+        acesso.cofre = await montarCofre(mestra);
+      });
+    } else {
+      await criarAcessoNovo(tokenPendente.usuario, tokenPendente.senha);
+    }
+    gravarSessao(cfg, tokenPendente.lembrar);
+    tokenPendente = null;
+    aviso('Token atualizado! Continue entrando com o mesmo usuário e senha.', 'ok');
+  } catch (e) {
+    aviso('Erro ao salvar o token: ' + e.message, 'erro');
+    mostrarTela('#telaToken');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Salvar token';
   }
 }
 
@@ -695,6 +746,8 @@ async function removerUsuario(nome) {
 // ---------- Eventos ----------
 
 $('#formEntrar').addEventListener('submit', entrar);
+$('#formToken').addEventListener('submit', salvarTokenNovo);
+$('#btnCancelarToken').addEventListener('click', () => { tokenPendente = null; cfg = {}; aviso(''); mostrarEntrar(); });
 $('#formLogin').addEventListener('submit', salvarConfig);
 $('#lnkConfigurar').addEventListener('click', ev => { ev.preventDefault(); aviso(''); mostrarConfig(); });
 $('#btnTrocarSenha').addEventListener('click', () => { aviso(''); mostrarConfig({ trocando: true }); });
