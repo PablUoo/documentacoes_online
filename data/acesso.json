@@ -1,7 +1,16 @@
 {
-  "versao": 1,
-  "iteracoes": 600000,
-  "salt": "9KLYOc0Ry2EoW2FKFxVStg==",
-  "iv": "33uPqTEESKQ6qODz",
-  "dados": "Oc1KdchXg6txQUIA/NgUrPpMaYfiEF/4/ZpvceLnavDTe+iGE1L6YLg9vNNi+ik7pMQgkEkZNNDaUNh7jMar3l6ywEr+xE9Xzj5MiBbwZ9Z6wEJ0mYwl6/+s3TK1M4HgLICUhkN2HijPyIXa0n8ahEROr4hs0irfzVJE3V1R2qRdeFef+JsvV7lAdxIwq+t3iUYB5Vf3ifPZXQJqihNt/O5V9oFjzmKblCyz3omlFx/JxmpCIkPQ5kTg0PBQtKCMnaXCVpZu"
+  "versao": 2,
+  "cofre": {
+    "iv": "CJWQuvgf0NPOXQE+",
+    "dados": "sxDBk2btdW3rrd78xvWGEwmn/DSSRm6GQp1KRCZn0gP/woiTHt9h80Wf9v7Ezu11jzUvbGbpeuR1yshZcIYpQebGqsnsdeHsxFwNvbBB5MgBHLh0we8JCI3bb7iqS6yWAjUm1Ftq4iJ/QYwJr5SCoFgkH9+D7ovRMK/vxy+MNmsJbIE/8w+xfP85/qLrWfdrPKHamJ3dqtQii4uD6S2d6e81wFtwvJSTMhvZxmte1TdScZJ4k8NKVUbOUQRYq/LS4r3gpDze"
+  },
+  "usuarios": {
+    "pablo.almeida": {
+      "iteracoes": 600000,
+      "salt": "dfqApVSSNYJXyCdjZimqJg==",
+      "iv": "adIdhaMvsKDNO6dx",
+      "dados": "qlGI6BpphlLQVqJ4jx+uC27XO90xdbaoo6GrSf+X28ghlEfTsPlv+IRkm8YNTaU5",
+      "criadoEm": "2026-10-02T20:12:21.430Z"
+    }
+  }
 }
