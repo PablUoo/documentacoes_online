@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Documento</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="wrap">
+      <h1><a href="./">Documentos Online</a></h1>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="card" id="conteudo">
+      <p class="muted">Carregando documento...</p>
+    </div>
+  </main>
+
+  <footer class="status">
+    <div class="wrap"><span id="statusTitulo">Documentos Online</span><a href="./">Todos os documentos</a></div>
+  </footer>
+
+  <script src="assets/app.js"></script>
+  <script>
+    (async () => {
+      const el = document.getElementById('conteudo');
+      const id = new URLSearchParams(location.search).get('id');
+      let doc = null;
+      try {
+        const docs = await App.carregarPublico();
+        doc = docs.find(d => d.id === id);
+      } catch (e) { /* trata abaixo */ }
+
+      if (!doc || doc.ativo === false) {
+        el.innerHTML = `<h2>Documento indisponível</h2>
+          <p class="muted">Este documento não existe ou foi desativado.</p>
+          <a class="btn" href="./">Ver documentos</a>`;
+        return;
+      }
+
+      document.title = doc.titulo;
+      document.getElementById('statusTitulo').textContent = doc.titulo;
+      const l = App.links(doc);
+      // Navegadores de celular não exibem PDF dentro de iframe; usa o visualizador do Google.
+      let embed = l.embed;
+      if (l.local && App.ehMobile()) {
+        embed = 'https://docs.google.com/viewer?embedded=true&url=' + encodeURIComponent(l.absoluto);
+      }
+
+      el.innerHTML = `
+        <h1 class="titulo-doc">${App.esc(doc.titulo)}</h1>
+        ${doc.descricao ? `<p class="muted" style="margin:0">${App.esc(doc.descricao)}</p>` : ''}
+        <div class="botoes" style="margin:20px 0">
+          <a class="btn primario grande" href="${App.esc(l.baixar)}" ${l.local ? 'download' : ''} target="_blank" rel="noopener">Baixar PDF</a>
+          <a class="btn grande" href="${App.esc(l.ver)}" target="_blank" rel="noopener">Abrir em tela cheia</a>
+        </div>
+        <iframe class="visualizador" src="${App.esc(embed)}" title="${App.esc(doc.titulo)}" allow="autoplay"></iframe>
+        <p class="dica">Se o documento não aparecer acima, use o botão “Abrir em tela cheia”.</p>`;
+    })();
+  </script>
+</body>
+</html>

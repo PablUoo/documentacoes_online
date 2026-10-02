@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Documentos Online</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="wrap">
+      <h1><a href="./">Documentos Online</a></h1>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="card">
+      <h2>Documentos disponíveis</h2>
+      <input type="search" id="busca" placeholder="Buscar documento..." aria-label="Buscar documento">
+      <ul class="lista" id="lista" style="margin-top:12px"></ul>
+      <p class="muted" id="vazio">Carregando...</p>
+    </div>
+  </main>
+
+  <footer class="status">
+    <div class="wrap"><span id="contagem">Documentos Online</span><span>PDF · QR Code</span></div>
+  </footer>
+
+  <script src="assets/app.js"></script>
+  <script>
+    let docs = [];
+    const lista = document.getElementById('lista');
+    const vazio = document.getElementById('vazio');
+
+    function render() {
+      const termo = document.getElementById('busca').value.trim().toLowerCase();
+      const visiveis = docs.filter(d => d.ativo !== false && d.listar !== false &&
+        (!termo || (d.titulo + ' ' + (d.descricao || '')).toLowerCase().includes(termo)));
+      lista.innerHTML = visiveis.map(d => `
+        <li>
+          <div class="info">
+            <div class="titulo">${App.esc(d.titulo)}</div>
+            ${d.descricao ? `<div class="muted small">${App.esc(d.descricao)}</div>` : ''}
+          </div>
+          <div class="botoes">
+            <a class="btn primario" href="doc.html?id=${encodeURIComponent(d.id)}">Abrir</a>
+          </div>
+        </li>`).join('');
+      vazio.textContent = visiveis.length ? '' : 'Nenhum documento encontrado.';
+      document.getElementById('contagem').textContent = `${visiveis.length} documento${visiveis.length === 1 ? '' : 's'}`;
+    }
+
+    document.getElementById('busca').addEventListener('input', render);
+    App.carregarPublico().then(d => { docs = d; render(); })
+      .catch(() => { vazio.textContent = 'Não foi possível carregar os documentos.'; });
+  </script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Admin · Documentos Online</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="wrap">
+      <h1><a href="admin.html">Painel Admin</a></h1>
+      <div class="botoes">
+        <a class="btn" href="./" target="_blank">Ver site</a>
+        <button class="btn oculto" id="btnSair">Sair</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="msg"></div>
+
+    <!-- Conexão com o GitHub -->
+    <section class="card oculto" id="telaLogin">
+      <h2>Conectar ao GitHub</h2>
+      <p class="muted small">O painel salva os documentos direto no seu repositório. O token fica guardado só neste navegador.</p>
+      <form id="formLogin">
+        <label for="cfgOwner">Usuário ou organização do GitHub</label>
+        <input type="text" id="cfgOwner" required placeholder="ex.: pabloalmeida">
+        <label for="cfgRepo">Repositório</label>
+        <input type="text" id="cfgRepo" required placeholder="ex.: documentacoes_online">
+        <label for="cfgBranch">Branch</label>
+        <input type="text" id="cfgBranch" value="main" required>
+        <label for="cfgToken">Token de acesso (fine-grained)</label>
+        <input type="password" id="cfgToken" required autocomplete="off" placeholder="github_pat_...">
+        <div class="dica">Crie em GitHub → Settings → Developer settings → Fine-grained tokens, só para este repositório, com permissão <b>Contents: Read and write</b>.</div>
+        <label for="cfgBase">URL pública do site (opcional)</label>
+        <input type="url" id="cfgBase" placeholder="https://usuario.github.io/repositorio/">
+        <div class="dica">É o endereço usado nos QR Codes. Em branco, usa o endereço desta página.</div>
+        <div class="botoes" style="margin-top:18px">
+          <button class="btn primario" type="submit">Conectar</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Lista de documentos -->
+    <section class="card oculto" id="telaDocs">
+      <div class="botoes" style="justify-content:space-between;margin-bottom:14px">
+        <h2 style="margin:0">Documentos</h2>
+        <button class="btn primario" id="btnNovo">+ Novo documento</button>
+      </div>
+      <input type="search" id="busca" placeholder="Buscar..." aria-label="Buscar">
+      <ul class="lista" id="lista" style="margin-top:8px"></ul>
+      <p class="muted" id="vazio"></p>
+    </section>
+  </main>
+
+  <footer class="status">
+    <div class="wrap"><span id="statusRepo">Desconectado</span><span id="statusContagem"></span></div>
+  </footer>
+
+  <!-- Formulário de documento -->
+  <dialog id="dlgDoc">
+    <form id="formDoc" method="dialog">
+      <h2 id="dlgDocTitulo">Novo documento</h2>
+      <label for="fTitulo">Título</label>
+      <input type="text" id="fTitulo" required>
+      <label for="fDescricao">Descrição (opcional)</label>
+      <textarea id="fDescricao"></textarea>
+
+      <label>Origem do arquivo</label>
+      <label class="check"><input type="radio" name="fTipo" value="link" checked> Link do Google Drive (ou outro link)</label>
+      <label class="check"><input type="radio" name="fTipo" value="arquivo"> Enviar PDF para o site</label>
+
+      <div id="campoLink">
+        <label for="fUrl">Link compartilhado</label>
+        <input type="url" id="fUrl" placeholder="https://drive.google.com/file/d/.../view?usp=sharing">
+        <div class="dica">No Drive: Compartilhar → Acesso geral → “Qualquer pessoa com o link”.</div>
+      </div>
+      <div id="campoArquivo" class="oculto">
+        <label for="fArquivo">Arquivo PDF (até 25 MB)</label>
+        <input type="file" id="fArquivo" accept="application/pdf,.pdf">
+        <div class="dica" id="arquivoAtual"></div>
+      </div>
+
+      <label class="check" style="margin-top:16px"><input type="checkbox" id="fAtivo" checked> Ativo (desmarque para bloquear o acesso sem invalidar o QR Code)</label>
+      <label class="check"><input type="checkbox" id="fListar" checked> Mostrar na página inicial</label>
+
+      <div class="botoes" style="margin-top:20px;justify-content:flex-end">
+        <button class="btn" type="button" id="btnCancelar">Cancelar</button>
+        <button class="btn primario" type="submit" id="btnSalvar">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- QR Code -->
+  <dialog id="dlgQr">
+    <h2 id="qrTitulo"></h2>
+    <div class="qr-box" id="qrBox"></div>
+    <div class="link-box" id="qrLink"></div>
+    <div class="botoes" style="margin-top:16px">
+      <button class="btn primario" id="btnImprimir">Imprimir A4</button>
+      <button class="btn" id="btnBaixarQr">Baixar PNG</button>
+      <button class="btn" id="btnCopiar">Copiar link</button>
+      <a class="btn" id="btnAbrirLink" target="_blank" rel="noopener">Abrir</a>
+      <button class="btn" id="btnFecharQr" style="margin-left:auto">Fechar</button>
+    </div>
+  </dialog>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/admin.js"></script>
+</body>
+</html>
