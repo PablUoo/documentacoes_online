@@ -11,6 +11,13 @@
       "iv": "adIdhaMvsKDNO6dx",
       "dados": "qlGI6BpphlLQVqJ4jx+uC27XO90xdbaoo6GrSf+X28ghlEfTsPlv+IRkm8YNTaU5",
       "criadoEm": "2026-10-02T20:12:21.430Z"
+    },
+    "luiz.nunes": {
+      "iteracoes": 600000,
+      "salt": "iQogfPCN06Llldo3BFpAug==",
+      "iv": "oWYMONDknfO1Vuwt",
+      "dados": "+YzYRjuzazNRzvBWXMvdRCsC8ikNO0jbJl5OEil9X9kpYs5Br55JZqUg863UYOUi",
+      "criadoEm": "2026-10-02T20:13:05.356Z"
     }
   }
 }
