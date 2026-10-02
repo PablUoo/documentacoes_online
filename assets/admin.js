@@ -125,7 +125,7 @@ function mostrarLogin() {
   const det = detectarRepo();
   $('#cfgOwner').value = cfg.owner || det.owner || '';
   $('#cfgRepo').value = cfg.repo || det.repo || '';
-  $('#cfgBranch').value = cfg.branch || 'dados';
+  $('#cfgBranch').value = cfg.branch || 'main';
   $('#cfgToken').value = '';
   $('#cfgBase').value = cfg.baseUrl || '';
   $('#telaLogin').classList.remove('oculto');
@@ -249,7 +249,7 @@ async function salvarForm(ev) {
 
     $('#dlgDoc').close();
     renderLista();
-    aviso('Salvo! O site público é atualizado pelo GitHub Pages em 1 a 2 minutos.', 'ok');
+    aviso('Salvo! O site público é atualizado pelo GitHub Pages em cerca de 1 minuto.', 'ok');
     if (!editando) abrirQr(registro);
   } catch (e) {
     alert('Erro ao salvar: ' + e.message + (e.status === 409 ? '\nO repositório mudou enquanto você editava. Tente de novo.' : ''));
@@ -420,7 +420,7 @@ $('#formLogin').addEventListener('submit', ev => {
   cfg = {
     owner: $('#cfgOwner').value.trim(),
     repo: $('#cfgRepo').value.trim(),
-    branch: $('#cfgBranch').value.trim() || 'dados',
+    branch: $('#cfgBranch').value.trim() || 'main',
     token: $('#cfgToken').value.trim(),
     baseUrl: $('#cfgBase').value.trim(),
   };
