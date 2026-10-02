@@ -7,10 +7,10 @@
   "usuarios": {
     "pablo.almeida": {
       "iteracoes": 600000,
-      "salt": "V8ZysferVOP3audooIEJwQ==",
-      "iv": "H+Z2VnMwoGBRwL7L",
-      "dados": "oBYOhUJav5FVLHDlx+pPJSSdf1t8tcEVjntoGsIsbzBN7wEFEaGeEMFQ9FH+IaCB",
-      "criadoEm": "2026-10-02T20:20:19.134Z"
+      "salt": "NNMzL7gQtrMKiJZo6UabjQ==",
+      "iv": "p8cC5Hcqja0HAeXN",
+      "dados": "ikcrEOddVfoUo82mltdu5WRWeVhgcVqVMiNeYE1Aj/URubhAmtGfSsPJSoQQkI1+",
+      "criadoEm": "2026-10-02T20:21:24.186Z"
     },
     "luiz.nunes": {
       "iteracoes": 600000,
