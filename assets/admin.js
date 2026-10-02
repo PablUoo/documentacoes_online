@@ -310,8 +310,14 @@ async function conectar() {
     renderLista();
     return true;
   } catch (e) {
-    const dicas = { 401: 'Token inválido ou expirado. Configure o acesso de novo com um token novo.', 403: 'O token não tem permissão neste repositório.', 404: 'Repositório ou branch não encontrado (ou o token não tem acesso a ele).' };
+    const dicas = {
+      401: 'O token do GitHub salvo no painel é inválido, expirou ou foi revogado. Gere um token novo e use “Configure o acesso de novo”, abaixo.',
+      403: 'O token não tem permissão neste repositório (precisa de Contents: Read and write).',
+      404: 'Repositório ou branch não encontrado (ou o token não tem acesso a ele).',
+    };
     aviso(dicas[e.status] || e.message, 'erro');
+    // Com o token quebrado ninguém consegue entrar: mostra a opção de recriar o acesso.
+    if (e.status === 401 || e.status === 403) $('#recuperarAcesso').classList.remove('oculto');
     return false;
   }
 }
