@@ -13,9 +13,10 @@
 <body>
   <header class="topo">
     <div class="wrap">
-      <h1><a href="admin.html">Painel Admin</a></h1>
+      <h1><a href="admin">Painel Admin</a></h1>
       <div class="botoes">
         <a class="btn" href="./" target="_blank">Ver site</a>
+        <button class="btn oculto" id="btnTrocarSenha">Trocar senha</button>
         <button class="btn oculto" id="btnSair">Sair</button>
       </div>
     </div>
@@ -24,25 +25,53 @@
   <main class="wrap">
     <div id="msg"></div>
 
-    <!-- Conexão com o GitHub -->
-    <section class="card oculto" id="telaLogin">
-      <h2>Conectar ao GitHub</h2>
-      <p class="muted small">O painel salva os documentos direto no seu repositório. O token fica guardado só neste navegador.</p>
-      <form id="formLogin">
-        <label for="cfgOwner">Usuário ou organização do GitHub</label>
-        <input type="text" id="cfgOwner" required placeholder="ex.: pabloalmeida">
-        <label for="cfgRepo">Repositório</label>
-        <input type="text" id="cfgRepo" required placeholder="ex.: documentacoes_online">
-        <label for="cfgBranch">Branch</label>
-        <input type="text" id="cfgBranch" value="main" required>
-        <label for="cfgToken">Token de acesso (fine-grained)</label>
-        <input type="password" id="cfgToken" required autocomplete="off" placeholder="github_pat_...">
-        <div class="dica">Crie em GitHub → Settings → Developer settings → Fine-grained tokens, só para este repositório, com permissão <b>Contents: Read and write</b>.</div>
-        <label for="cfgBase">URL pública do site (opcional)</label>
-        <input type="url" id="cfgBase" placeholder="https://usuario.github.io/repositorio/">
-        <div class="dica">É o endereço usado nos QR Codes. Em branco, usa o endereço desta página.</div>
+    <!-- Login -->
+    <section class="card oculto" id="telaEntrar" style="max-width:400px;margin:40px auto 0">
+      <h2>Entrar</h2>
+      <form id="formEntrar">
+        <label for="loginUsuario">Usuário</label>
+        <input type="text" id="loginUsuario" required autocomplete="username" autocapitalize="none">
+        <label for="loginSenha">Senha</label>
+        <input type="password" id="loginSenha" required autocomplete="current-password">
         <div class="botoes" style="margin-top:18px">
-          <button class="btn primario" type="submit">Conectar</button>
+          <button class="btn primario" type="submit" id="btnEntrar" style="width:100%">Entrar</button>
+        </div>
+      </form>
+      <p class="dica" style="margin-top:16px">Esqueceu a senha? <a href="#" id="lnkConfigurar">Configure o acesso de novo</a> usando o token do GitHub.</p>
+    </section>
+
+    <!-- Configuração do acesso (primeiro uso ou troca de senha) -->
+    <section class="card oculto" id="telaLogin">
+      <h2 id="tituloConfig">Configurar acesso</h2>
+      <p class="muted small" id="textoConfig">O token do GitHub fica salvo no repositório criptografado com o usuário e a senha que você escolher aqui. Depois disso, basta entrar com usuário e senha.</p>
+      <form id="formLogin">
+        <label for="novoUsuario">Usuário do painel</label>
+        <input type="text" id="novoUsuario" required autocomplete="username" autocapitalize="none">
+        <label for="novaSenha">Senha do painel</label>
+        <input type="password" id="novaSenha" required minlength="8" autocomplete="new-password">
+        <label for="novaSenha2">Confirmar senha</label>
+        <input type="password" id="novaSenha2" required minlength="8" autocomplete="new-password">
+        <div class="dica">Use pelo menos 8 caracteres. Quanto mais longa, mais segura.</div>
+
+        <label for="cfgToken">Token do GitHub (fine-grained)</label>
+        <input type="password" id="cfgToken" required autocomplete="off" placeholder="github_pat_...">
+        <div class="dica">Pedido só nesta configuração. Crie em GitHub → Settings → Developer settings → Fine-grained tokens, só para este repositório, com permissão <b>Contents: Read and write</b>.</div>
+
+        <!-- Só aparece se assets/config.js não estiver preenchido -->
+        <div id="camposGithub">
+          <label for="cfgOwner">Usuário ou organização do GitHub</label>
+          <input type="text" id="cfgOwner" placeholder="ex.: pabloalmeida">
+          <label for="cfgRepo">Repositório</label>
+          <input type="text" id="cfgRepo" placeholder="ex.: documentacoes_online">
+          <label for="cfgBranch">Branch</label>
+          <input type="text" id="cfgBranch" value="main">
+          <label for="cfgBase">URL pública do site (opcional)</label>
+          <input type="url" id="cfgBase" placeholder="https://usuario.github.io/repositorio/">
+          <div class="dica">É o endereço usado nos QR Codes. Em branco, usa o endereço desta página.</div>
+        </div>
+        <div class="botoes" style="margin-top:18px">
+          <button class="btn primario" type="submit" id="btnSalvarAcesso">Salvar e entrar</button>
+          <button class="btn oculto" type="button" id="btnCancelarConfig">Cancelar</button>
         </div>
       </form>
     </section>
@@ -112,6 +141,7 @@
   </dialog>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="assets/config.js"></script>
   <script src="assets/app.js"></script>
   <script src="assets/admin.js"></script>
 </body>

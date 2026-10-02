@@ -1,5 +1,7 @@
 const $ = s => document.querySelector(s);
-const CFG_KEY = 'docqr.config';
+const SESSAO_KEY = 'docqr.sessao';
+const ACESSO_PATH = 'data/acesso.json';
+const ITERACOES = 600000;
 const MAX_MB = 25;
 
 let cfg = {};
@@ -7,13 +9,62 @@ let docs = [];
 let docsSha = null;
 let editando = null;
 
-// ---------- Configuração ----------
+// ---------- Sessão ----------
+// A sessão (com o token já decifrado) dura só enquanto a aba estiver aberta.
 
-function lerCfg() {
-  try { return JSON.parse(localStorage.getItem(CFG_KEY)) || {}; } catch { return {}; }
+function lerSessao() {
+  try { return JSON.parse(sessionStorage.getItem(SESSAO_KEY)) || {}; } catch { return {}; }
 }
-function gravarCfg(c) {
-  try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch { /* sem storage */ }
+function gravarSessao(c) {
+  try { sessionStorage.setItem(SESSAO_KEY, JSON.stringify(c)); } catch { /* sem storage */ }
+}
+function limparSessao() {
+  try { sessionStorage.removeItem(SESSAO_KEY); } catch { /* sem storage */ }
+}
+
+// ---------- Criptografia do token ----------
+// O token é cifrado com AES-GCM; a chave vem de usuário + senha via PBKDF2.
+// O arquivo data/acesso.json é público, mas sem usuário e senha o token não pode ser lido.
+
+function b64ParaBytes(b64) {
+  return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+}
+
+async function derivarChave(usuario, senha, salt, iteracoes) {
+  const segredo = new TextEncoder().encode(usuario.trim().toLowerCase() + '\n' + senha);
+  const base = await crypto.subtle.importKey('raw', segredo, 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: iteracoes, hash: 'SHA-256' },
+    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+
+async function cifrarAcesso(usuario, senha, dados) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const chave = await derivarChave(usuario, senha, salt, ITERACOES);
+  const cifrado = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, chave, new TextEncoder().encode(JSON.stringify(dados)));
+  return { versao: 1, iteracoes: ITERACOES, salt: bytesParaB64(salt), iv: bytesParaB64(iv), dados: bytesParaB64(new Uint8Array(cifrado)) };
+}
+
+async function decifrarAcesso(usuario, senha, acesso) {
+  const chave = await derivarChave(usuario, senha, b64ParaBytes(acesso.salt), acesso.iteracoes);
+  const aberto = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64ParaBytes(acesso.iv) }, chave, b64ParaBytes(acesso.dados));
+  return JSON.parse(new TextDecoder().decode(aberto));
+}
+
+// Lido pelo site publicado, sem precisar de token.
+async function buscarAcesso() {
+  const r = await fetch(ACESSO_PATH + '?t=' + Date.now(), { cache: 'no-store' });
+  return r.ok ? r.json() : null;
+}
+
+async function salvarAcesso(usuario, senha) {
+  const acesso = await cifrarAcesso(usuario, senha, cfg);
+  const conteudo = new TextEncoder().encode(JSON.stringify(acesso, null, 2) + '\n');
+  const atual = await gh(ACESSO_PATH, { allow404: true });
+  const body = { message: 'Atualiza acesso do painel', content: bytesParaB64(conteudo), branch: cfg.branch };
+  if (atual) body.sha = atual.sha;
+  await gh(ACESSO_PATH, { method: 'PUT', body });
 }
 
 // Em usuario.github.io/repo/ dá para deduzir usuário e repositório.
@@ -121,33 +172,118 @@ function novoId() {
 
 // ---------- Telas ----------
 
-function mostrarLogin() {
-  const det = detectarRepo();
+function mostrarTela(id) {
+  ['#telaEntrar', '#telaLogin', '#telaDocs'].forEach(t => $(t).classList.toggle('oculto', t !== id));
+  const logado = id === '#telaDocs';
+  $('#btnSair').classList.toggle('oculto', !logado);
+  $('#btnTrocarSenha').classList.toggle('oculto', !logado);
+  if (!logado) {
+    $('#statusRepo').textContent = 'Desconectado';
+    $('#statusContagem').textContent = '';
+  }
+}
+
+function mostrarEntrar() {
+  $('#loginSenha').value = '';
+  mostrarTela('#telaEntrar');
+  $('#loginUsuario').focus();
+}
+
+// trocando = já está logado e só quer mudar usuário/senha (o token pode ficar o mesmo).
+// Usuário, repositório e branch fixos em assets/config.js (quando preenchido).
+function configFixa() {
+  const c = window.SITE_CONFIG || {};
+  return c.owner && c.repo ? { owner: c.owner, repo: c.repo, branch: c.branch || 'main', baseUrl: c.baseUrl || '' } : null;
+}
+
+function mostrarConfig({ trocando = false, primeiroAcesso = false } = {}) {
+  const det = configFixa() || detectarRepo();
+  $('#camposGithub').classList.toggle('oculto', !!configFixa());
+  $('#cfgOwner').required = $('#cfgRepo').required = !configFixa();
   $('#cfgOwner').value = cfg.owner || det.owner || '';
   $('#cfgRepo').value = cfg.repo || det.repo || '';
-  $('#cfgBranch').value = cfg.branch || 'main';
+  $('#cfgBranch').value = cfg.branch || det.branch || 'main';
   $('#cfgToken').value = '';
-  $('#cfgBase').value = cfg.baseUrl || '';
-  $('#telaLogin').classList.remove('oculto');
-  $('#telaDocs').classList.add('oculto');
-  $('#btnSair').classList.add('oculto');
-  $('#statusRepo').textContent = 'Desconectado';
-  $('#statusContagem').textContent = '';
+  $('#cfgToken').required = !trocando;
+  $('#cfgToken').placeholder = trocando ? 'Deixe em branco para manter o token atual' : 'github_pat_...';
+  $('#cfgBase').value = cfg.baseUrl || det.baseUrl || '';
+  $('#novaSenha').value = '';
+  $('#novaSenha2').value = '';
+  $('#tituloConfig').textContent = trocando ? 'Trocar usuário e senha' : primeiroAcesso ? 'Primeiro acesso' : 'Configurar acesso';
+  $('#btnCancelarConfig').classList.toggle('oculto', primeiroAcesso);
+  $('#formLogin').dataset.trocando = trocando ? '1' : '';
+  mostrarTela('#telaLogin');
 }
 
 async function conectar() {
   aviso('Conectando...');
   try {
     await carregarDocs();
-    $('#telaLogin').classList.add('oculto');
-    $('#telaDocs').classList.remove('oculto');
-    $('#btnSair').classList.remove('oculto');
+    mostrarTela('#telaDocs');
     aviso('');
     renderLista();
+    return true;
   } catch (e) {
-    const dicas = { 401: 'Token inválido ou expirado.', 403: 'O token não tem permissão neste repositório.', 404: 'Repositório ou branch não encontrado (ou o token não tem acesso a ele).' };
+    const dicas = { 401: 'Token inválido ou expirado. Configure o acesso de novo com um token novo.', 403: 'O token não tem permissão neste repositório.', 404: 'Repositório ou branch não encontrado (ou o token não tem acesso a ele).' };
     aviso(dicas[e.status] || e.message, 'erro');
-    mostrarLogin();
+    return false;
+  }
+}
+
+async function entrar(ev) {
+  ev.preventDefault();
+  const btn = $('#btnEntrar');
+  btn.disabled = true;
+  btn.textContent = 'Entrando...';
+  try {
+    const acesso = await buscarAcesso();
+    if (!acesso) { mostrarConfig({ primeiroAcesso: true }); return; }
+    try {
+      cfg = await decifrarAcesso($('#loginUsuario').value, $('#loginSenha').value, acesso);
+    } catch {
+      aviso('Usuário ou senha inválidos.', 'erro');
+      $('#loginSenha').value = '';
+      $('#loginSenha').focus();
+      return;
+    }
+    gravarSessao(cfg);
+    if (!(await conectar())) { limparSessao(); mostrarEntrar(); }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+  }
+}
+
+async function salvarConfig(ev) {
+  ev.preventDefault();
+  const trocando = !!$('#formLogin').dataset.trocando;
+  const usuario = $('#novoUsuario').value.trim();
+  const senha = $('#novaSenha').value;
+  if (senha !== $('#novaSenha2').value) { aviso('As senhas não conferem.', 'erro'); return; }
+
+  const anterior = cfg;
+  cfg = {
+    owner: $('#cfgOwner').value.trim(),
+    repo: $('#cfgRepo').value.trim(),
+    branch: $('#cfgBranch').value.trim() || 'main',
+    token: $('#cfgToken').value.trim() || (trocando ? anterior.token : ''),
+    baseUrl: $('#cfgBase').value.trim(),
+  };
+
+  const btn = $('#btnSalvarAcesso');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  try {
+    if (!(await conectar())) { cfg = anterior; return; }
+    await salvarAcesso(usuario, senha);
+    gravarSessao(cfg);
+    aviso('Acesso salvo! Nas próximas vezes, entre com o usuário e a senha.', 'ok');
+  } catch (e) {
+    aviso('Erro ao salvar o acesso: ' + e.message, 'erro');
+    mostrarTela('#telaLogin');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Salvar e entrar';
   }
 }
 
@@ -341,24 +477,20 @@ async function copiarLink() {
 
 // ---------- Eventos ----------
 
-$('#formLogin').addEventListener('submit', ev => {
-  ev.preventDefault();
-  cfg = {
-    owner: $('#cfgOwner').value.trim(),
-    repo: $('#cfgRepo').value.trim(),
-    branch: $('#cfgBranch').value.trim() || 'main',
-    token: $('#cfgToken').value.trim(),
-    baseUrl: $('#cfgBase').value.trim(),
-  };
-  gravarCfg(cfg);
-  conectar();
+$('#formEntrar').addEventListener('submit', entrar);
+$('#formLogin').addEventListener('submit', salvarConfig);
+$('#lnkConfigurar').addEventListener('click', ev => { ev.preventDefault(); aviso(''); mostrarConfig(); });
+$('#btnTrocarSenha').addEventListener('click', () => { aviso(''); mostrarConfig({ trocando: true }); });
+$('#btnCancelarConfig').addEventListener('click', () => {
+  aviso('');
+  if (cfg.token) mostrarTela('#telaDocs'); else mostrarEntrar();
 });
 
 $('#btnSair').addEventListener('click', () => {
-  cfg = { ...cfg, token: '' };
-  gravarCfg(cfg);
+  cfg = {};
+  limparSessao();
   aviso('');
-  mostrarLogin();
+  mostrarEntrar();
 });
 
 $('#btnNovo').addEventListener('click', () => abrirForm());
@@ -383,5 +515,14 @@ $('#btnFecharQr').addEventListener('click', () => $('#dlgQr').close());
 
 // ---------- Início ----------
 
-cfg = lerCfg();
-if (cfg.token && cfg.owner && cfg.repo) conectar(); else mostrarLogin();
+// Remove o token salvo em texto puro pela versão anterior do painel.
+try { localStorage.removeItem('docqr.config'); } catch { /* sem storage */ }
+
+(async () => {
+  cfg = lerSessao();
+  if (cfg.token && (await conectar())) return;
+  cfg = {};
+  limparSessao();
+  const acesso = await buscarAcesso().catch(() => null);
+  if (acesso) mostrarEntrar(); else mostrarConfig({ primeiroAcesso: true });
+})();

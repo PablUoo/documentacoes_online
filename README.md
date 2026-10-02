@@ -8,7 +8,7 @@ Site estático para o GitHub Pages: você cadastra documentos PDF (link do Googl
 |---|---|
 | `index.html` | Lista pública dos documentos (com busca) |
 | `doc.html?id=...` | Página do documento: é o endereço que o QR Code abre |
-| `admin.html` | Painel para cadastrar, editar, excluir e gerar os QR Codes |
+| `/admin` | Painel (com login) para cadastrar, editar, excluir e gerar os QR Codes |
 
 O QR Code aponta para a página `doc.html?id=...`, e não direto para o arquivo. Assim você pode **trocar o PDF ou o link do Drive sem reimprimir o QR Code**, e desativar o documento quando quiser.
 
@@ -18,17 +18,25 @@ O QR Code aponta para a página `doc.html?id=...`, e não direto para o arquivo.
 2. No repositório: **Settings → Pages → Source: Deploy from a branch → `main` / `(root)`** → Save.
 3. Em ~1 minuto o site fica em `https://SEU_USUARIO.github.io/documentacoes_online/`.
 
-## Como criar o token do painel admin
+## Painel admin: login e senha
 
-O painel salva tudo direto no repositório pela API do GitHub. Quem não tem o token não consegue alterar nada.
+O painel fica em `/admin` (ex.: `https://documentacoes.duckdns.org/admin`).
 
-1. GitHub → foto do perfil → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
-2. **Repository access:** *Only select repositories* → escolha este repositório.
-3. **Permissions → Repository permissions → Contents: Read and write**.
-4. Gere e copie o token (`github_pat_...`).
-5. Abra `https://SEU_USUARIO.github.io/documentacoes_online/admin.html`, cole o token e conecte. Usuário e repositório são preenchidos sozinhos.
+**Configuração fixa:** usuário, repositório e branch do GitHub ficam em [`assets/config.js`](assets/config.js). Esse arquivo é público, então não coloque segredos nele.
 
-O token fica salvo só no navegador onde você conectou. Use **Sair** para apagá-lo em computadores compartilhados.
+**Primeiro acesso (uma vez só):**
+1. Crie um token: GitHub → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
+   - **Repository access:** *Only select repositories* → este repositório.
+   - **Add permissions → Contents** → troque para **Read and write**.
+2. Abra `/admin`, escolha um **usuário** e uma **senha** para o painel, cole o token e clique em **Salvar e entrar**.
+
+Depois disso, em qualquer navegador ou celular, basta entrar com usuário e senha.
+
+**Como fica seguro sem servidor:** o token é salvo em `data/acesso.json` **criptografado** (AES-GCM), com uma chave derivada do usuário e da senha (PBKDF2-SHA256, 600 mil iterações). O arquivo é público, mas sem usuário e senha o token não pode ser lido. Use uma senha longa: quem baixar o arquivo pode tentar adivinhar a senha à força.
+
+- **Trocar senha:** botão **Trocar senha** dentro do painel (o token pode continuar o mesmo).
+- **Esqueceu a senha ou o token venceu:** na tela de login, clique em *Configure o acesso de novo* e use um token válido.
+- **Sair:** encerra a sessão. Ela também termina sozinha ao fechar a aba.
 
 ## Cadastrando documentos
 
