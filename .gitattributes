@@ -1,0 +1,4 @@
+# Sempre LF, para o Git do Windows e o do WSL enxergarem os arquivos iguais
+* text=auto eol=lf
+*.pdf binary
+*.png binary
