@@ -15,7 +15,7 @@
     <div class="wrap">
       <h1><a href="admin">Painel Admin</a></h1>
       <div class="botoes">
-        <a class="btn" href="./" target="_blank">Ver site</a>
+        <button class="btn oculto" id="btnUsuarios">Usuários</button>
         <button class="btn oculto" id="btnTrocarSenha">Trocar senha</button>
         <button class="btn oculto" id="btnSair">Sair</button>
       </div>
@@ -119,11 +119,32 @@
       </div>
 
       <label class="check" style="margin-top:16px"><input type="checkbox" id="fAtivo" checked> Ativo (desmarque para bloquear o acesso sem invalidar o QR Code)</label>
-      <label class="check"><input type="checkbox" id="fListar" checked> Mostrar na página inicial</label>
 
       <div class="botoes" style="margin-top:20px;justify-content:flex-end">
         <button class="btn" type="button" id="btnCancelar">Cancelar</button>
         <button class="btn primario" type="submit" id="btnSalvar">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Usuários admin -->
+  <dialog id="dlgUsuarios">
+    <h2>Usuários admin</h2>
+    <p class="muted small" style="margin-top:0">Cada admin entra com o próprio usuário e senha. Todos usam o mesmo token do GitHub.</p>
+    <ul class="lista" id="listaUsuarios"></ul>
+    <p class="muted small" id="usuariosStatus"></p>
+
+    <form id="formUsuario" style="border-top:1px solid var(--border);margin-top:8px;padding-top:4px">
+      <label for="uNome">Novo usuário</label>
+      <input type="text" id="uNome" required autocomplete="off" autocapitalize="none">
+      <label for="uSenha">Senha</label>
+      <input type="password" id="uSenha" required minlength="8" autocomplete="new-password">
+      <label for="uSenha2">Confirmar senha</label>
+      <input type="password" id="uSenha2" required minlength="8" autocomplete="new-password">
+      <div class="dica">Passe a senha para a pessoa por um canal seguro. Ela pode trocar depois em “Trocar senha”.</div>
+      <div class="botoes" style="margin-top:18px;justify-content:flex-end">
+        <button class="btn" type="button" id="btnFecharUsuarios">Fechar</button>
+        <button class="btn primario" type="submit" id="btnCriarUsuario">Criar usuário</button>
       </div>
     </form>
   </dialog>

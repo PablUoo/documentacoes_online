@@ -75,8 +75,8 @@ main.wrap { padding-top: 28px; padding-bottom: 48px; }
 }
 .topo .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 48px; }
 .topo h1 { font-size: 13px; font-weight: 600; margin: 0; letter-spacing: .2px; }
-.topo h1 a { color: inherit; display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
-.topo h1 a::before {
+.topo h1 a, .topo h1 .marca { color: inherit; display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+.topo h1 a::before, .topo h1 .marca::before {
   content: ""; width: 14px; height: 14px; border-radius: 3px;
   background: var(--accent);
   box-shadow: inset -5px -5px 0 0 color-mix(in srgb, var(--accent) 55%, var(--surface));

@@ -33,33 +33,69 @@ function limparSessao() {
 }
 
 // ---------- Criptografia do token ----------
-// O token é cifrado com AES-GCM; a chave vem de usuário + senha via PBKDF2.
-// O arquivo data/acesso.json é público, mas sem usuário e senha o token não pode ser lido.
+// Formato do data/acesso.json (versão 2):
+// - "cofre": token e configuração, cifrados (AES-GCM) com uma chave mestra aleatória;
+// - "usuarios": para cada admin, a chave mestra cifrada com uma chave derivada de usuário + senha (PBKDF2).
+// Assim cada admin tem a própria senha, e trocar o token não quebra o acesso dos outros.
+// O arquivo é público, mas sem um usuário e senha válidos nada pode ser lido.
+// A versão 1 (um usuário só, token cifrado direto pela senha) é migrada no login.
+
+const utf8 = s => new TextEncoder().encode(s);
+const deUtf8 = b => new TextDecoder().decode(b);
+const normalizarUsuario = u => u.trim().toLowerCase();
 
 function b64ParaBytes(b64) {
   return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
 }
 
 async function derivarChave(usuario, senha, salt, iteracoes) {
-  const segredo = new TextEncoder().encode(usuario.trim().toLowerCase() + '\n' + senha);
-  const base = await crypto.subtle.importKey('raw', segredo, 'PBKDF2', false, ['deriveKey']);
+  const base = await crypto.subtle.importKey('raw', utf8(normalizarUsuario(usuario) + '\n' + senha), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
     { name: 'PBKDF2', salt, iterations: iteracoes, hash: 'SHA-256' },
     base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
 }
 
-async function cifrarAcesso(usuario, senha, dados) {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const chave = await derivarChave(usuario, senha, salt, ITERACOES);
-  const cifrado = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, chave, new TextEncoder().encode(JSON.stringify(dados)));
-  return { versao: 1, iteracoes: ITERACOES, salt: bytesParaB64(salt), iv: bytesParaB64(iv), dados: bytesParaB64(new Uint8Array(cifrado)) };
+function importarMestra(bytes) {
+  return crypto.subtle.importKey('raw', bytes, 'AES-GCM', false, ['encrypt', 'decrypt']);
 }
 
-async function decifrarAcesso(usuario, senha, acesso) {
+async function cifrarBytes(chave, bytes) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const cifrado = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, chave, bytes);
+  return { iv: bytesParaB64(iv), dados: bytesParaB64(new Uint8Array(cifrado)) };
+}
+
+async function decifrarBytes(chave, { iv, dados }) {
+  return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64ParaBytes(iv) }, chave, b64ParaBytes(dados)));
+}
+
+// Só o que precisa ficar no cofre (sem dados da sessão).
+function credenciais() {
+  const { owner, repo, branch, token, baseUrl } = cfg;
+  return { owner, repo, branch, token, baseUrl };
+}
+
+async function montarCofre(mestra) {
+  return cifrarBytes(await importarMestra(mestra), utf8(JSON.stringify(credenciais())));
+}
+
+async function entradaUsuario(usuario, senha, mestra) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const chave = await derivarChave(usuario, senha, salt, ITERACOES);
+  return { iteracoes: ITERACOES, salt: bytesParaB64(salt), ...(await cifrarBytes(chave, mestra)), criadoEm: new Date().toISOString() };
+}
+
+// Devolve as credenciais e a chave mestra (null se o arquivo ainda for da versão 1).
+async function abrirAcesso(usuario, senha, acesso) {
+  if (acesso.versao === 2) {
+    const e = acesso.usuarios?.[normalizarUsuario(usuario)];
+    if (!e) throw new Error('usuário não encontrado');
+    const mestra = await decifrarBytes(await derivarChave(usuario, senha, b64ParaBytes(e.salt), e.iteracoes), e);
+    const cred = JSON.parse(deUtf8(await decifrarBytes(await importarMestra(mestra), acesso.cofre)));
+    return { cred, mestra };
+  }
   const chave = await derivarChave(usuario, senha, b64ParaBytes(acesso.salt), acesso.iteracoes);
-  const aberto = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64ParaBytes(acesso.iv) }, chave, b64ParaBytes(acesso.dados));
-  return JSON.parse(new TextDecoder().decode(aberto));
+  return { cred: JSON.parse(deUtf8(await decifrarBytes(chave, acesso))), mestra: null };
 }
 
 // Lido sem token. Pela API do GitHub o arquivo aparece na hora (o site publicado demora ~1 min);
@@ -78,13 +114,35 @@ async function buscarAcesso() {
   return r.ok ? r.json() : null;
 }
 
-async function salvarAcesso(usuario, senha) {
-  const acesso = await cifrarAcesso(usuario, senha, cfg);
-  const conteudo = new TextEncoder().encode(JSON.stringify(acesso, null, 2) + '\n');
-  const atual = await gh(ACESSO_PATH, { allow404: true });
-  const body = { message: 'Atualiza acesso do painel', content: bytesParaB64(conteudo), branch: cfg.branch };
-  if (atual) body.sha = atual.sha;
+async function lerAcessoRepo() {
+  const r = await gh(ACESSO_PATH, { allow404: true });
+  return r ? { acesso: JSON.parse(b64ParaTexto(r.content)), sha: r.sha } : { acesso: null, sha: null };
+}
+
+async function gravarAcessoRepo(acesso, sha, mensagem) {
+  const body = { message: mensagem, content: bytesParaB64(utf8(JSON.stringify(acesso, null, 2) + '\n')), branch: cfg.branch };
+  if (sha) body.sha = sha;
   await gh(ACESSO_PATH, { method: 'PUT', body });
+}
+
+// Cria o acesso do zero (primeiro acesso, recuperação ou migração): só este usuário fica cadastrado.
+async function criarAcessoNovo(usuario, senha) {
+  const mestra = crypto.getRandomValues(new Uint8Array(32));
+  const nome = normalizarUsuario(usuario);
+  const acesso = { versao: 2, cofre: await montarCofre(mestra), usuarios: { [nome]: await entradaUsuario(nome, senha, mestra) } };
+  const { sha } = await lerAcessoRepo();
+  await gravarAcessoRepo(acesso, sha, `Cria acesso do painel (${nome})`);
+  cfg.usuario = nome;
+  cfg.mestra = bytesParaB64(mestra);
+}
+
+// Altera o acesso existente usando a chave mestra da sessão.
+async function alterarAcesso(mensagem, alteracao) {
+  const { acesso, sha } = await lerAcessoRepo();
+  if (!acesso || acesso.versao !== 2 || !cfg.mestra) throw new Error('Acesso em formato antigo. Saia e entre de novo para atualizar.');
+  await alteracao(acesso, b64ParaBytes(cfg.mestra));
+  await gravarAcessoRepo(acesso, sha, mensagem);
+  return acesso;
 }
 
 // Em usuario.github.io/repo/ dá para deduzir usuário e repositório.
@@ -197,6 +255,7 @@ function mostrarTela(id) {
   const logado = id === '#telaDocs';
   $('#btnSair').classList.toggle('oculto', !logado);
   $('#btnTrocarSenha').classList.toggle('oculto', !logado);
+  $('#btnUsuarios').classList.toggle('oculto', !logado);
   if (!logado) {
     $('#statusRepo').textContent = 'Desconectado';
     $('#statusContagem').textContent = '';
@@ -229,7 +288,13 @@ function mostrarConfig({ trocando = false, primeiroAcesso = false } = {}) {
   $('#cfgBase').value = cfg.baseUrl || det.baseUrl || '';
   $('#novaSenha').value = '';
   $('#novaSenha2').value = '';
-  $('#tituloConfig').textContent = trocando ? 'Trocar usuário e senha' : primeiroAcesso ? 'Primeiro acesso' : 'Configurar acesso';
+  $('#novoUsuario').value = trocando ? (cfg.usuario || '') : '';
+  $('#tituloConfig').textContent = trocando ? 'Trocar usuário e senha' : primeiroAcesso ? 'Primeiro acesso' : 'Configurar acesso de novo';
+  $('#textoConfig').textContent = trocando
+    ? 'Altera só o seu usuário e senha. Se informar um token novo, ele passa a valer para todos os admins.'
+    : primeiroAcesso
+      ? 'O token do GitHub fica salvo no repositório criptografado. Depois disso, basta entrar com usuário e senha.'
+      : 'Recria o acesso com um token válido. Atenção: os outros admins precisarão ser cadastrados de novo.';
   $('#btnCancelarConfig').classList.toggle('oculto', primeiroAcesso);
   $('#campoLembrarConfig').classList.toggle('oculto', trocando);
   $('#formLogin').dataset.trocando = trocando ? '1' : '';
@@ -259,16 +324,22 @@ async function entrar(ev) {
   try {
     const acesso = await buscarAcesso();
     if (!acesso) { mostrarConfig({ primeiroAcesso: true }); return; }
+    const usuario = $('#loginUsuario').value;
+    const senha = $('#loginSenha').value;
+    let aberto;
     try {
-      cfg = await decifrarAcesso($('#loginUsuario').value, $('#loginSenha').value, acesso);
+      aberto = await abrirAcesso(usuario, senha, acesso);
     } catch {
       aviso('Usuário ou senha inválidos.', 'erro');
       $('#loginSenha').value = '';
       $('#loginSenha').focus();
       return;
     }
+    cfg = { ...aberto.cred, usuario: normalizarUsuario(usuario), mestra: aberto.mestra ? bytesParaB64(aberto.mestra) : null };
+    if (!(await conectar())) { cfg = {}; mostrarEntrar(); return; }
+    // Arquivo da versão 1: converte para o formato com vários usuários.
+    if (!aberto.mestra) await criarAcessoNovo(usuario, senha).catch(() => {});
     gravarSessao(cfg, $('#lembrar').checked);
-    if (!(await conectar())) { limparSessao(); mostrarEntrar(); }
   } finally {
     btn.disabled = false;
     btn.textContent = 'Entrar';
@@ -282,21 +353,37 @@ async function salvarConfig(ev) {
   const senha = $('#novaSenha').value;
   if (senha !== $('#novaSenha2').value) { aviso('As senhas não conferem.', 'erro'); return; }
 
+  if (!usuarioValido(usuario)) { aviso(AVISO_USUARIO, 'erro'); return; }
+
   const anterior = cfg;
+  const tokenNovo = $('#cfgToken').value.trim();
   cfg = {
     owner: $('#cfgOwner').value.trim(),
     repo: $('#cfgRepo').value.trim(),
     branch: $('#cfgBranch').value.trim() || 'main',
-    token: $('#cfgToken').value.trim() || (trocando ? anterior.token : ''),
+    token: tokenNovo || (trocando ? anterior.token : ''),
     baseUrl: $('#cfgBase').value.trim(),
+    usuario: anterior.usuario,
+    mestra: trocando ? anterior.mestra : null,
   };
 
   const btn = $('#btnSalvarAcesso');
   btn.disabled = true;
   btn.textContent = 'Salvando...';
   try {
-    if (!(await conectar())) { cfg = anterior; return; }
-    await salvarAcesso(usuario, senha);
+    if (!(await conectar())) { cfg = anterior; if (trocando) mostrarConfig({ trocando }); return; }
+    if (trocando && cfg.mestra) {
+      // Troca do próprio usuário/senha (e do token, se informado) sem afetar os outros admins.
+      const nome = normalizarUsuario(usuario);
+      await alterarAcesso(`Atualiza acesso do painel (${nome})`, async (acesso, mestra) => {
+        if (tokenNovo) acesso.cofre = await montarCofre(mestra);
+        if (anterior.usuario && anterior.usuario !== nome) delete acesso.usuarios[anterior.usuario];
+        acesso.usuarios[nome] = await entradaUsuario(nome, senha, mestra);
+      });
+      cfg.usuario = nome;
+    } else {
+      await criarAcessoNovo(usuario, senha);
+    }
     gravarSessao(cfg, trocando ? sessaoLembrada() : $('#lembrarConfig').checked);
     aviso('Acesso salvo! Nas próximas vezes, entre com o usuário e a senha.', 'ok');
   } catch (e) {
@@ -320,7 +407,6 @@ function renderLista() {
         <div class="small">
           <span class="tag">${d.tipo === 'arquivo' ? 'PDF no site' : 'Link'}</span>
           ${d.ativo === false ? '<span class="tag off">Desativado</span>' : ''}
-          ${d.listar === false ? '<span class="tag">Oculto da lista</span>' : ''}
         </div>
       </div>
       <div class="botoes">
@@ -352,7 +438,6 @@ function abrirForm(doc = null) {
   $('#fArquivo').value = '';
   $('#arquivoAtual').textContent = doc?.arquivo ? `Arquivo atual: ${doc.arquivo} (envie outro só se quiser substituir)` : '';
   $('#fAtivo').checked = doc ? doc.ativo !== false : true;
-  $('#fListar').checked = doc ? doc.listar !== false : true;
   atualizarTipo();
   $('#dlgDoc').showModal();
 }
@@ -389,7 +474,6 @@ async function salvarForm(ev) {
       tipo,
       ...(tipo === 'link' ? { url } : { arquivo }),
       ativo: $('#fAtivo').checked,
-      listar: $('#fListar').checked,
       criadoEm: editando?.criadoEm || agora,
       atualizadoEm: agora,
     };
@@ -496,12 +580,96 @@ async function copiarLink() {
   setTimeout(() => { $('#btnCopiar').textContent = 'Copiar link'; }, 1500);
 }
 
+// ---------- Usuários admin ----------
+
+const AVISO_USUARIO = 'Usuário inválido: use de 2 a 40 letras, números, ponto, hífen, sublinhado ou @, sem espaços.';
+function usuarioValido(u) {
+  return /^[a-z0-9._@-]{2,40}$/.test(normalizarUsuario(u));
+}
+
+async function abrirUsuarios() {
+  $('#formUsuario').reset();
+  $('#listaUsuarios').innerHTML = '';
+  $('#usuariosStatus').textContent = 'Carregando...';
+  $('#dlgUsuarios').showModal();
+  try {
+    const { acesso } = await lerAcessoRepo();
+    renderUsuarios(acesso);
+  } catch (e) {
+    $('#usuariosStatus').textContent = 'Erro ao carregar: ' + e.message;
+  }
+}
+
+function renderUsuarios(acesso) {
+  if (!acesso || acesso.versao !== 2) {
+    $('#usuariosStatus').textContent = 'Acesso em formato antigo. Saia e entre de novo para atualizar.';
+    return;
+  }
+  const nomes = Object.keys(acesso.usuarios).sort();
+  $('#listaUsuarios').innerHTML = nomes.map(n => {
+    const voce = n === cfg.usuario;
+    const desde = acesso.usuarios[n].criadoEm ? new Date(acesso.usuarios[n].criadoEm).toLocaleDateString('pt-BR') : '';
+    return `
+      <li>
+        <div class="info" style="display:block">
+          <div class="titulo">${App.esc(n)} ${voce ? '<span class="tag">você</span>' : ''}</div>
+          ${desde ? `<div class="muted small">Desde ${desde}</div>` : ''}
+        </div>
+        ${voce ? '' : `<button class="btn perigo" data-remover="${App.esc(n)}">Remover</button>`}
+      </li>`;
+  }).join('');
+  $('#usuariosStatus').textContent = `${nomes.length} usuário${nomes.length === 1 ? '' : 's'}`;
+}
+
+async function criarUsuario(ev) {
+  ev.preventDefault();
+  const nome = normalizarUsuario($('#uNome').value);
+  const senha = $('#uSenha').value;
+  if (!usuarioValido(nome)) { alert(AVISO_USUARIO); return; }
+  if (senha !== $('#uSenha2').value) { alert('As senhas não conferem.'); return; }
+  const btn = $('#btnCriarUsuario');
+  btn.disabled = true;
+  btn.textContent = 'Criando...';
+  try {
+    const acesso = await alterarAcesso(`Adiciona usuário admin: ${nome}`, async (acesso, mestra) => {
+      if (acesso.usuarios[nome]) throw new Error(`O usuário “${nome}” já existe.`);
+      acesso.usuarios[nome] = await entradaUsuario(nome, senha, mestra);
+    });
+    $('#formUsuario').reset();
+    renderUsuarios(acesso);
+  } catch (e) {
+    alert('Erro ao criar usuário: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Criar usuário';
+  }
+}
+
+async function removerUsuario(nome) {
+  if (!confirm(`Remover o usuário “${nome}”?\n\nEle não vai mais conseguir entrar. Se ele estiver com o painel aberto agora, a sessão dele continua até sair; para cortar na hora, troque também o token do GitHub.`)) return;
+  try {
+    const acesso = await alterarAcesso(`Remove usuário admin: ${nome}`, async acesso => {
+      delete acesso.usuarios[nome];
+    });
+    renderUsuarios(acesso);
+  } catch (e) {
+    alert('Erro ao remover usuário: ' + e.message);
+  }
+}
+
 // ---------- Eventos ----------
 
 $('#formEntrar').addEventListener('submit', entrar);
 $('#formLogin').addEventListener('submit', salvarConfig);
 $('#lnkConfigurar').addEventListener('click', ev => { ev.preventDefault(); aviso(''); mostrarConfig(); });
 $('#btnTrocarSenha').addEventListener('click', () => { aviso(''); mostrarConfig({ trocando: true }); });
+$('#btnUsuarios').addEventListener('click', abrirUsuarios);
+$('#formUsuario').addEventListener('submit', criarUsuario);
+$('#btnFecharUsuarios').addEventListener('click', () => $('#dlgUsuarios').close());
+$('#listaUsuarios').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-remover]');
+  if (b) removerUsuario(b.dataset.remover);
+});
 $('#btnCancelarConfig').addEventListener('click', () => {
   aviso('');
   if (cfg.token) mostrarTela('#telaDocs'); else mostrarEntrar();

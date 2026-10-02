@@ -6,8 +6,8 @@ Site estático para o GitHub Pages: você cadastra documentos PDF (link do Googl
 
 | Página | Para quê |
 |---|---|
-| `index.html` | Lista pública dos documentos (com busca) |
-| `doc.html?id=...` | Página do documento: é o endereço que o QR Code abre |
+| `/` | Redireciona para o painel admin (não há lista pública) |
+| `doc.html?id=...` | Página do documento: é o endereço que o QR Code abre (a única parte pública) |
 | `/admin` | Painel (com login) para cadastrar, editar, excluir e gerar os QR Codes |
 
 O QR Code aponta para a página `doc.html?id=...`, e não direto para o arquivo. Assim você pode **trocar o PDF ou o link do Drive sem reimprimir o QR Code**, e desativar o documento quando quiser.
@@ -32,10 +32,12 @@ O painel fica em `/admin` (ex.: `https://documentacoes.duckdns.org/admin`).
 
 Depois disso, em qualquer navegador ou celular, basta entrar com usuário e senha.
 
-**Como fica seguro sem servidor:** o token é salvo em `data/acesso.json` **criptografado** (AES-GCM), com uma chave derivada do usuário e da senha (PBKDF2-SHA256, 600 mil iterações). O arquivo é público, mas sem usuário e senha o token não pode ser lido. Use uma senha longa: quem baixar o arquivo pode tentar adivinhar a senha à força.
+**Como fica seguro sem servidor:** o token fica em `data/acesso.json` num "cofre" criptografado (AES-GCM) com uma chave mestra aleatória. Cada admin tem a própria cópia da chave mestra, criptografada com o usuário e a senha dele (PBKDF2-SHA256, 600 mil iterações). O arquivo é público, mas sem um usuário e senha válidos nada pode ser lido. Use senhas longas: quem baixar o arquivo pode tentar adivinhar uma senha à força.
 
-- **Trocar senha:** botão **Trocar senha** dentro do painel (o token pode continuar o mesmo).
-- **Esqueceu a senha ou o token venceu:** na tela de login, clique em *Configure o acesso de novo* e use um token válido.
+- **Usuários:** botão **Usuários** no painel para criar e remover admins. Cada um entra com o próprio usuário e senha.
+- **Trocar senha:** botão **Trocar senha**. Muda só o seu usuário e senha. Se informar um token novo (ex.: o antigo venceu), ele passa a valer para todos os admins.
+- **Esqueceu a senha:** peça para outro admin remover e recriar o seu usuário. Se ninguém conseguir entrar, use *Configure o acesso de novo* na tela de login com um token válido (isso recria o acesso e os outros admins precisam ser cadastrados de novo).
+- **Remover um admin** impede novos logins dele. Se ele já viu o token, troque o token também para cortar o acesso por completo.
 - **Manter conectado neste computador:** marque na tela de login para não precisar entrar de novo nesse navegador. Sem marcar, a sessão termina ao fechar a aba.
 - **Sair:** encerra a sessão e apaga o token deste navegador.
 
@@ -55,4 +57,3 @@ Depois de salvar, clique em **QR Code** e escolha:
 - Depois de salvar, o GitHub Pages leva cerca de 1 minuto para publicar a mudança.
 - O repositório é público, então os PDFs enviados e a lista `data/documentos.json` podem ser vistos por qualquer pessoa. Não use para documentos sigilosos.
 - Desmarcar **Ativo** bloqueia o acesso sem invalidar o QR Code. **Excluir** remove o documento de vez, e o QR Code para de funcionar.
-- Desmarcar **Mostrar na página inicial** esconde o documento da lista. Ele continua acessível pelo QR Code.

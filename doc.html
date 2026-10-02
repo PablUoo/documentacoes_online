@@ -12,7 +12,7 @@
 <body>
   <header class="topo">
     <div class="wrap">
-      <h1><a href="./">Documentos Online</a></h1>
+      <h1><span class="marca">Documentações</span></h1>
     </div>
   </header>
 
@@ -23,10 +23,9 @@
   </main>
 
   <footer class="status">
-    <div class="wrap"><span id="statusTitulo">Documentos Online</span><a href="./">Todos os documentos</a></div>
+    <div class="wrap"><span id="statusTitulo">Documentações</span><span>PDF</span></div>
   </footer>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="assets/app.js"></script>
   <script>
     (async () => {
@@ -41,7 +40,7 @@
       if (!doc || doc.ativo === false) {
         el.innerHTML = `<h2>Documento indisponível</h2>
           <p class="muted">Este documento não existe ou foi desativado.</p>
-          <a class="btn" href="./">Ver documentos</a>`;
+          `;
         return;
       }
 
@@ -60,11 +59,9 @@
         <div class="botoes" style="margin:20px 0">
           <a class="btn primario grande" href="${App.esc(l.baixar)}" ${l.local ? 'download' : ''} target="_blank" rel="noopener">Baixar PDF</a>
           <a class="btn grande" href="${App.esc(l.ver)}" target="_blank" rel="noopener">Abrir em tela cheia</a>
-          <button class="btn grande" id="btnImprimir">Imprimir QR Code</button>
         </div>
         <iframe class="visualizador" src="${App.esc(embed)}" title="${App.esc(doc.titulo)}" allow="autoplay"></iframe>
         <p class="dica">Se o documento não aparecer acima, use o botão “Abrir em tela cheia”.</p>`;
-      document.getElementById('btnImprimir').addEventListener('click', () => App.imprimirA4(doc, App.linkDoc(doc.id)));
     })();
   </script>
 </body>
