@@ -10,16 +10,26 @@ let docsSha = null;
 let editando = null;
 
 // ---------- Sessão ----------
-// A sessão (com o token já decifrado) dura só enquanto a aba estiver aberta.
+// Por padrão a sessão (com o token já decifrado) dura só enquanto a aba estiver aberta.
+// Com "Manter conectado", fica salva neste navegador até clicar em Sair.
 
 function lerSessao() {
-  try { return JSON.parse(sessionStorage.getItem(SESSAO_KEY)) || {}; } catch { return {}; }
+  for (const s of [sessionStorage, localStorage]) {
+    try { const c = JSON.parse(s.getItem(SESSAO_KEY)); if (c) return c; } catch { /* sem storage */ }
+  }
+  return {};
 }
-function gravarSessao(c) {
-  try { sessionStorage.setItem(SESSAO_KEY, JSON.stringify(c)); } catch { /* sem storage */ }
+function gravarSessao(c, lembrar) {
+  limparSessao();
+  try { (lembrar ? localStorage : sessionStorage).setItem(SESSAO_KEY, JSON.stringify(c)); } catch { /* sem storage */ }
+}
+function sessaoLembrada() {
+  try { return !!localStorage.getItem(SESSAO_KEY); } catch { return false; }
 }
 function limparSessao() {
-  try { sessionStorage.removeItem(SESSAO_KEY); } catch { /* sem storage */ }
+  for (const s of [sessionStorage, localStorage]) {
+    try { s.removeItem(SESSAO_KEY); } catch { /* sem storage */ }
+  }
 }
 
 // ---------- Criptografia do token ----------
@@ -52,8 +62,18 @@ async function decifrarAcesso(usuario, senha, acesso) {
   return JSON.parse(new TextDecoder().decode(aberto));
 }
 
-// Lido pelo site publicado, sem precisar de token.
+// Lido sem token. Pela API do GitHub o arquivo aparece na hora (o site publicado demora ~1 min);
+// se a API falhar (ex.: limite de requisições), usa a cópia do site.
 async function buscarAcesso() {
+  const fixa = configFixa();
+  if (fixa) {
+    try {
+      const url = `https://api.github.com/repos/${fixa.owner}/${fixa.repo}/contents/${ACESSO_PATH}?ref=${encodeURIComponent(fixa.branch)}&t=${Date.now()}`;
+      const r = await fetch(url, { headers: { Accept: 'application/vnd.github.raw+json' }, cache: 'no-store' });
+      if (r.ok) return r.json();
+      if (r.status === 404) return null;
+    } catch { /* tenta pelo site */ }
+  }
   const r = await fetch(ACESSO_PATH + '?t=' + Date.now(), { cache: 'no-store' });
   return r.ok ? r.json() : null;
 }
@@ -211,6 +231,7 @@ function mostrarConfig({ trocando = false, primeiroAcesso = false } = {}) {
   $('#novaSenha2').value = '';
   $('#tituloConfig').textContent = trocando ? 'Trocar usuário e senha' : primeiroAcesso ? 'Primeiro acesso' : 'Configurar acesso';
   $('#btnCancelarConfig').classList.toggle('oculto', primeiroAcesso);
+  $('#campoLembrarConfig').classList.toggle('oculto', trocando);
   $('#formLogin').dataset.trocando = trocando ? '1' : '';
   mostrarTela('#telaLogin');
 }
@@ -246,7 +267,7 @@ async function entrar(ev) {
       $('#loginSenha').focus();
       return;
     }
-    gravarSessao(cfg);
+    gravarSessao(cfg, $('#lembrar').checked);
     if (!(await conectar())) { limparSessao(); mostrarEntrar(); }
   } finally {
     btn.disabled = false;
@@ -276,7 +297,7 @@ async function salvarConfig(ev) {
   try {
     if (!(await conectar())) { cfg = anterior; return; }
     await salvarAcesso(usuario, senha);
-    gravarSessao(cfg);
+    gravarSessao(cfg, trocando ? sessaoLembrada() : $('#lembrarConfig').checked);
     aviso('Acesso salvo! Nas próximas vezes, entre com o usuário e a senha.', 'ok');
   } catch (e) {
     aviso('Erro ao salvar o acesso: ' + e.message, 'erro');

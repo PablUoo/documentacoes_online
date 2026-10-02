@@ -36,7 +36,8 @@ Depois disso, em qualquer navegador ou celular, basta entrar com usuário e senh
 
 - **Trocar senha:** botão **Trocar senha** dentro do painel (o token pode continuar o mesmo).
 - **Esqueceu a senha ou o token venceu:** na tela de login, clique em *Configure o acesso de novo* e use um token válido.
-- **Sair:** encerra a sessão. Ela também termina sozinha ao fechar a aba.
+- **Manter conectado neste computador:** marque na tela de login para não precisar entrar de novo nesse navegador. Sem marcar, a sessão termina ao fechar a aba.
+- **Sair:** encerra a sessão e apaga o token deste navegador.
 
 ## Cadastrando documentos
 

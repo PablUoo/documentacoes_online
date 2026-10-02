@@ -33,7 +33,8 @@
         <input type="text" id="loginUsuario" required autocomplete="username" autocapitalize="none">
         <label for="loginSenha">Senha</label>
         <input type="password" id="loginSenha" required autocomplete="current-password">
-        <div class="botoes" style="margin-top:18px">
+        <label class="check" style="margin-top:14px"><input type="checkbox" id="lembrar"> Manter conectado neste computador</label>
+        <div class="botoes" style="margin-top:14px">
           <button class="btn primario" type="submit" id="btnEntrar" style="width:100%">Entrar</button>
         </div>
       </form>
@@ -69,6 +70,7 @@
           <input type="url" id="cfgBase" placeholder="https://usuario.github.io/repositorio/">
           <div class="dica">É o endereço usado nos QR Codes. Em branco, usa o endereço desta página.</div>
         </div>
+        <label class="check oculto" style="margin-top:14px" id="campoLembrarConfig"><input type="checkbox" id="lembrarConfig"> Manter conectado neste computador</label>
         <div class="botoes" style="margin-top:18px">
           <button class="btn primario" type="submit" id="btnSalvarAcesso">Salvar e entrar</button>
           <button class="btn oculto" type="button" id="btnCancelarConfig">Cancelar</button>
