@@ -84,7 +84,14 @@
         <h2 style="margin:0">Documentos</h2>
         <button class="btn primario" id="btnNovo">+ Novo documento</button>
       </div>
-      <input type="search" id="busca" placeholder="Buscar..." aria-label="Buscar">
+      <div style="display:flex;gap:8px">
+        <input type="search" id="busca" placeholder="Buscar..." aria-label="Buscar" style="flex:1">
+        <select id="filtroDono" aria-label="Filtrar documentos" style="width:auto">
+          <option value="todos">Todos</option>
+          <option value="meus">Meus</option>
+          <option value="compartilhados">Compartilhados comigo</option>
+        </select>
+      </div>
       <ul class="lista" id="lista" style="margin-top:8px"></ul>
       <p class="muted" id="vazio"></p>
     </section>
@@ -119,6 +126,7 @@
       </div>
 
       <label class="check" style="margin-top:16px"><input type="checkbox" id="fAtivo" checked> Ativo (desmarque para bloquear o acesso sem invalidar o QR Code)</label>
+      <label class="check"><input type="checkbox" id="fCompartilhado"> Compartilhar com todos os admins (eles veem e imprimem o QR Code, só você edita)</label>
 
       <div class="botoes" style="margin-top:20px;justify-content:flex-end">
         <button class="btn" type="button" id="btnCancelar">Cancelar</button>

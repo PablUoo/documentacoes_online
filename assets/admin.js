@@ -395,29 +395,50 @@ async function salvarConfig(ev) {
   }
 }
 
+// ---------- Dono e compartilhamento ----------
+// Cada documento tem um dono (quem criou). Os outros admins só o veem se estiver compartilhado,
+// e só o dono edita ou exclui. Documentos antigos, sem dono, ficam visíveis e editáveis por todos
+// até alguém salvá-los (aí quem salvou vira o dono).
+
+function ehDono(d) {
+  return !d.dono || d.dono === cfg.usuario;
+}
+function visivelParaMim(d) {
+  return ehDono(d) || d.compartilhado === true;
+}
+
 function renderLista() {
   const termo = $('#busca').value.trim().toLowerCase();
-  const filtrados = docs
+  const filtro = $('#filtroDono').value;
+  const visiveis = docs.filter(visivelParaMim);
+  const filtrados = visiveis
+    .filter(d => filtro === 'todos' || (filtro === 'meus' ? d.dono === cfg.usuario || !d.dono : d.dono && d.dono !== cfg.usuario))
     .filter(d => !termo || (d.titulo + ' ' + (d.descricao || '')).toLowerCase().includes(termo))
     .sort((a, b) => (b.criadoEm || '').localeCompare(a.criadoEm || ''));
-  $('#lista').innerHTML = filtrados.map(d => `
+  $('#lista').innerHTML = filtrados.map(d => {
+    const meu = ehDono(d);
+    return `
     <li>
       <div class="info">
         <div class="titulo">${App.esc(d.titulo)}</div>
         <div class="small">
           <span class="tag">${d.tipo === 'arquivo' ? 'PDF no site' : 'Link'}</span>
           ${d.ativo === false ? '<span class="tag off">Desativado</span>' : ''}
+          ${d.compartilhado ? '<span class="tag">Compartilhado</span>' : ''}
+          ${d.dono && !meu ? `<span class="tag">De ${App.esc(d.dono)}</span>` : ''}
+          ${!d.dono ? '<span class="tag">Sem dono</span>' : ''}
         </div>
       </div>
       <div class="botoes">
         <button class="btn primario" data-acao="qr" data-id="${d.id}">QR Code</button>
-        <button class="btn" data-acao="editar" data-id="${d.id}">Editar</button>
-        <button class="btn perigo" data-acao="excluir" data-id="${d.id}">Excluir</button>
+        ${meu ? `<button class="btn" data-acao="editar" data-id="${d.id}">Editar</button>
+        <button class="btn perigo" data-acao="excluir" data-id="${d.id}">Excluir</button>` : '<span class="muted small">Somente leitura</span>'}
       </div>
-    </li>`).join('');
-  $('#statusRepo').textContent = `⎇ ${cfg.owner}/${cfg.repo} · ${cfg.branch}`;
-  $('#statusContagem').textContent = `${docs.length} documento${docs.length === 1 ? '' : 's'}`;
-  $('#vazio').textContent = docs.length ? (filtrados.length ? '' : 'Nada encontrado.') : 'Nenhum documento ainda. Clique em “+ Novo documento”.';
+    </li>`;
+  }).join('');
+  $('#statusRepo').textContent = `⎇ ${cfg.owner}/${cfg.repo} · ${cfg.branch} · ${cfg.usuario || ''}`;
+  $('#statusContagem').textContent = `${visiveis.length} documento${visiveis.length === 1 ? '' : 's'}`;
+  $('#vazio').textContent = visiveis.length ? (filtrados.length ? '' : 'Nada encontrado.') : 'Nenhum documento ainda. Clique em “+ Novo documento”.';
 }
 
 // ---------- Formulário ----------
@@ -429,7 +450,9 @@ function atualizarTipo() {
 }
 
 function abrirForm(doc = null) {
+  if (doc && !ehDono(doc)) { alert(`Só ${doc.dono} pode editar este documento.`); return; }
   editando = doc;
+  $('#fCompartilhado').checked = !!doc?.compartilhado;
   $('#dlgDocTitulo').textContent = doc ? 'Editar documento' : 'Novo documento';
   $('#fTitulo').value = doc?.titulo || '';
   $('#fDescricao').value = doc?.descricao || '';
@@ -474,12 +497,16 @@ async function salvarForm(ev) {
       tipo,
       ...(tipo === 'link' ? { url } : { arquivo }),
       ativo: $('#fAtivo').checked,
+      dono: editando?.dono || cfg.usuario,
+      compartilhado: $('#fCompartilhado').checked,
       criadoEm: editando?.criadoEm || agora,
       atualizadoEm: agora,
     };
 
-    await alterarDocs(`${editando ? 'Atualiza' : 'Adiciona'} documento: ${titulo}`, lista => {
+    await alterarDocs(`${editando ? 'Atualiza' : 'Adiciona'} documento: ${titulo} (${cfg.usuario})`, lista => {
       const i = lista.findIndex(d => d.id === id);
+      // Confere de novo na versão mais recente, caso o dono tenha mudado nesse meio-tempo.
+      if (i >= 0 && !ehDono(lista[i])) throw new Error(`só ${lista[i].dono} pode editar este documento.`);
       if (i >= 0) lista[i] = registro; else lista.push(registro);
     });
 
@@ -501,11 +528,13 @@ async function salvarForm(ev) {
 }
 
 async function excluirDoc(doc) {
+  if (!ehDono(doc)) { alert(`Só ${doc.dono} pode excluir este documento.`); return; }
   if (!confirm(`Excluir “${doc.titulo}”?\nO QR Code deste documento deixará de funcionar.\n\nSe quiser só bloquear temporariamente, use “Editar” e desmarque “Ativo”.`)) return;
   aviso('Excluindo...');
   try {
-    await alterarDocs(`Remove documento: ${doc.titulo}`, lista => {
+    await alterarDocs(`Remove documento: ${doc.titulo} (${cfg.usuario})`, lista => {
       const i = lista.findIndex(d => d.id === doc.id);
+      if (i >= 0 && !ehDono(lista[i])) throw new Error(`só ${lista[i].dono} pode excluir este documento.`);
       if (i >= 0) lista.splice(i, 1);
     });
     if (doc.arquivo) await excluirArquivo(doc.arquivo, `Remove PDF de: ${doc.titulo}`).catch(() => {});
@@ -684,6 +713,7 @@ $('#btnSair').addEventListener('click', () => {
 
 $('#btnNovo').addEventListener('click', () => abrirForm());
 $('#busca').addEventListener('input', renderLista);
+$('#filtroDono').addEventListener('change', renderLista);
 $('#lista').addEventListener('click', ev => {
   const b = ev.target.closest('button[data-acao]');
   if (!b) return;

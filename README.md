@@ -52,6 +52,14 @@ Depois de salvar, clique em **QR Code** e escolha:
 - **Baixar PNG**: só o QR Code com o título embaixo, para usar em etiquetas ou outros materiais.
 - **Copiar link**.
 
+### Dono e compartilhamento
+
+- Cada documento tem um **dono**: o admin que o criou. Só o dono edita ou exclui.
+- Por padrão, só o dono vê o documento no painel. Marque **Compartilhar com todos os admins** para os outros também verem e imprimirem o QR Code, mas sem poder editar.
+- Use o filtro ao lado da busca para ver **Todos**, **Meus** ou **Compartilhados comigo**.
+- Documentos criados antes dessa função aparecem como **Sem dono**, e qualquer admin pode editar. Quem salvar um deles primeiro vira o dono.
+- Isso organiza o painel, mas não é uma trava de segurança: todos os admins usam o mesmo token do GitHub, então quem tiver conhecimento técnico consegue alterar qualquer documento direto pela API. Cadastre como admin só quem é de confiança.
+
 ## Observações
 
 - Depois de salvar, o GitHub Pages leva cerca de 1 minuto para publicar a mudança.
